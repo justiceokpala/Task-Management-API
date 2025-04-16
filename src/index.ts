@@ -1,6 +1,10 @@
 import express, { Request, Response } from 'express';
 import AppDataSource from "../data-source";
 import taskRouter from './route/task_route';
+import dotenv from 'dotenv';
+import authRouter from './route/auth_route';
+
+
 
 export function bootstrap() {
     const app = express();
@@ -11,8 +15,9 @@ export function bootstrap() {
     app.get('/health', (req: Request, res: Response) => {
       res.status(200).send({ message: 'App is running' });
     });
-    
+
     app.use('/api/tasks', taskRouter);
+    app.use('/api/user', authRouter);
 
     async function initializeDatabase() {
       try {
@@ -23,6 +28,7 @@ export function bootstrap() {
         process.exit(1); // Exit the process with a non-zero exit code
       }
     }
+    dotenv.config();
     
     initializeDatabase();
    

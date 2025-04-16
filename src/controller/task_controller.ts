@@ -2,39 +2,46 @@ import AppDataSource from "../../data-source";
 import Task from "../entity/task.entity";
 import { Request, Response} from "express";
 import { validate } from "class-validator";
-import { plainToClass } from 'class-transformer';
-import TaskDto from "./dto's/taskDto";
-import GetTasksQueryDto from "./dto's/getTasksDto";
-import GetTaskByIdDto from "./dto's/getTaskByIdDto";
-import UpdateTaskDto from "./updateTaskDto";
-import DeleteTaskDto from "./dto's/deleteTaskDto";
+import TaskDto from "./dto's/task/taskDto";
+import GetTasksQueryDto from "./dto's/task/getTasksDto";
+import UpdateTaskDto from "./dto's/task/updateTaskDto";
+
 
 
 const taskRepository = AppDataSource.getRepository(Task);
 
 export const createTask = async (req: Request, res: Response): Promise<void> => {
-    const taskDto = plainToClass(TaskDto, req.body) as TaskDto;;
-    const errors = await validate(taskDto);
-  
-    if (errors.length > 0) {
-      res.status(400).json(errors);
-      return;
-    }
-  
+
+  const taskDto =  req.body as unknown as TaskDto;
+     const errors = await validate(taskDto);
+     if (errors.length > 0) {
+     res.status(400).json(errors);
+       return;
+     }
+     const existingTask = await taskRepository.findOne({ where: { title: taskDto.title } }); 
+      if (existingTask) {
+      res.status(400).json({ message: 'Title taken, use another' });
+   }
+   
+   try {
     const task = taskRepository.create(taskDto);
     const savedTask = await taskRepository.save(task);
-    res.status(201).json(savedTask);
+    res.status(201).json(savedTask);  
+   } catch (error) {
+     console.log(error);
+   }
+  
   };
   
 
 export const getAllTasks = async (req: Request, res: Response): Promise<void> => {
-    const query = plainToClass(GetTasksQueryDto, req.query) as GetTasksQueryDto;
+    const query = req.query as unknown as GetTasksQueryDto
     const errors = await validate(query);
-  
     if (errors.length > 0) {
       res.status(400).json(errors);
       return;
     }
+    console.log(query);
   
     const page = query.page ? parseInt(query.page) : 1;
     const limit = query.limit ? parseInt(query.limit) : 10;
@@ -63,17 +70,8 @@ export const getAllTasks = async (req: Request, res: Response): Promise<void> =>
 
   export const getTaskById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const query = plainToClass(GetTaskByIdDto, req.query) as GetTaskByIdDto;
-      const errors = await validate(query);
-  
-      if (errors.length > 0) {
-        res.status(400).json(errors);
-        return;
-      }
-
-      const task = await taskRepository.findOne({ where:{ id: query.id.toString()}});
-    
-  
+      const taskId = req.query.id as string
+      const task = await taskRepository.findOne({ where:{ id: taskId.toString()}});
       if (!task) {
         res.status(404).json({ message: 'Task not found' });
         return;
@@ -88,54 +86,36 @@ export const getAllTasks = async (req: Request, res: Response): Promise<void> =>
   
   export const updateTask = async (req: Request, res: Response): Promise<void> => {
     try {
-      const query = plainToClass(GetTaskByIdDto, req.query) as GetTaskByIdDto;
-      const errors = await validate(query);
-      if (errors.length > 0) {
-        res.status(400).json(errors);
-        return;
-      }
-  
-      const taskUpdateDto = plainToClass(UpdateTaskDto, req.body) as UpdateTaskDto;
+      const taskId = req.query.id as string
+      const taskUpdateDto = req.body as unknown as UpdateTaskDto;
       const updateErrors = await validate(taskUpdateDto);
       if (updateErrors.length > 0) {
         res.status(400).json(updateErrors);
         return;
       }
-  
-      const task = await taskRepository.findOne({ where: { id: query.id.toString() } });
+      const task = await taskRepository.findOne({ where: { id: taskId.toString() } });
       if (!task) {
         res.status(404).json({ message: 'Task not found' });
         return;
       }
-  
       taskRepository.merge(task, taskUpdateDto);
       await taskRepository.save(task);
-  
       res.status(200).json(task);
     } catch (error) {
       res.status(500).json({ message: 'Failed to update task' });
     }
   };
-  
+
+
   export const deleteTask = async (req: Request, res: Response): Promise<void> =>  {
     try {
-    
-      const deleteTaskDto = plainToClass(DeleteTaskDto, req.query) as DeleteTaskDto;
-      const error = await validate(deleteTaskDto);
-  
-      if (error.length > 0) {
-        res.status(400).json(error);
-        return;
-      }
-  
-      const task = await taskRepository.findOne({ where: { id: deleteTaskDto.id.toString() } });
-  
+      const taskId = req.query.id as string
+      const task = await taskRepository.findOne({ where: { id: taskId.toString() } });
       if (!task) {
         res.status(404).json({ message: 'Task not found' });
         return;
       }
-  
-      await taskRepository.delete(deleteTaskDto.id.toString());
+      await taskRepository.delete(taskId);
       res.status(200).json({ message: 'Task deleted successfully' });
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete task' });

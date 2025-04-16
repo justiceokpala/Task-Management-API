@@ -1,7 +1,6 @@
 
 import express, { Router } from 'express';
 import { createTask, deleteTask, getAllTasks, getTaskById, updateTask } from '../controller/task_controller';
-import DeleteTaskDto from '../controller/dto\'s/deleteTaskDto';
 
 const taskRouter: Router = express.Router();
 
